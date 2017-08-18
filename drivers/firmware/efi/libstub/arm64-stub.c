@@ -20,7 +20,7 @@
 
 #include <linux/efi.h>
 #include <asm/efi.h>
-
+#include <asm/sections.h>
 #include "efistub.h"
 
 efi_status_t __init handle_kernel_image(efi_system_table_t *sys_table_arg,
