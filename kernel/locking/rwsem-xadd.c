@@ -538,14 +538,6 @@ struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem)
 	 * wakeup in up_write() context. In spinning writer, sem->count
 	 * and local variable count is 0XFFFFFFFE00000001. It would result
 	 * in rwsem_try_write_lock() failing to acquire rwsem and spinning
-	 * writer going to sleep in rwsem_down_write_failed().
-	 *
-	 * The smp_rmb() here is to make sure that the spinner state is
-	 * consulted after sem->count is updated in up_write context.
-	 */
-	smp_rmb();
-
-	/*
 	 * If a spinner is present, it is not necessary to do the wakeup.
 	 * Try to do wakeup only if the trylock succeeds to minimize
 	 * spinlock contention which may introduce too much delay in the
