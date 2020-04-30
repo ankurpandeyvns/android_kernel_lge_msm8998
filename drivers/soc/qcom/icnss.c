@@ -302,6 +302,7 @@ enum icnss_driver_state {
 	ICNSS_DRIVER_UNLOADING,
 	ICNSS_REJUVENATE,
 	ICNSS_BLOCK_SHUTDOWN,
+	ICNSS_PDR,
 };
 
 struct ce_irq_list {
@@ -495,6 +496,7 @@ static struct icnss_priv {
 	u16 line_number;
 	char function_name[QMI_WLFW_FUNCTION_NAME_LEN_V01 + 1];
 	struct completion unblock_shutdown;
+	bool is_ssr;
 } *penv;
 
 #ifdef CONFIG_ICNSS_DEBUG
@@ -1203,7 +1205,8 @@ bool icnss_is_fw_down(void)
 		return false;
 
 	return test_bit(ICNSS_FW_DOWN, &penv->state) ||
-		test_bit(ICNSS_PD_RESTART, &penv->state);
+		test_bit(ICNSS_PD_RESTART, &penv->state) ||
+		test_bit(ICNSS_REJUVENATE, &penv->state);
 }
 EXPORT_SYMBOL(icnss_is_fw_down);
 
@@ -1215,6 +1218,15 @@ bool icnss_is_rejuvenate(void)
 		return test_bit(ICNSS_REJUVENATE, &penv->state);
 }
 EXPORT_SYMBOL(icnss_is_rejuvenate);
+
+bool icnss_is_pdr(void)
+{
+	if (!penv)
+		return false;
+	else
+		return test_bit(ICNSS_PDR, &penv->state);
+}
+EXPORT_SYMBOL(icnss_is_pdr);
 
 int icnss_power_off(struct device *dev)
 {
@@ -1292,7 +1304,7 @@ static int wlfw_msa_mem_info_send_sync_msg(void)
 	for (i = 0; i < resp.mem_region_info_len; i++) {
 
 		if (resp.mem_region_info[i].size > penv->msa_mem_size ||
-		    resp.mem_region_info[i].region_addr > max_mapped_addr ||
+		    resp.mem_region_info[i].region_addr >= max_mapped_addr ||
 		    resp.mem_region_info[i].region_addr < penv->msa_pa ||
 		    resp.mem_region_info[i].size +
 		    resp.mem_region_info[i].region_addr > max_mapped_addr) {
@@ -2291,8 +2303,10 @@ static int icnss_pd_restart_complete(struct icnss_priv *priv)
 
 	icnss_call_driver_shutdown(priv);
 
-	clear_bit(ICNSS_REJUVENATE, &penv->state);
+	clear_bit(ICNSS_PDR, &priv->state);
+	clear_bit(ICNSS_REJUVENATE, &priv->state);
 	clear_bit(ICNSS_PD_RESTART, &priv->state);
+	priv->is_ssr = false;
 
 	if (!priv->ops || !priv->ops->reinit)
 		goto out;
@@ -2627,6 +2641,8 @@ static int icnss_modem_notifier_nb(struct notifier_block *nb,
 	if (code != SUBSYS_BEFORE_SHUTDOWN)
 		return NOTIFY_OK;
 
+	priv->is_ssr = true;
+
 	if (code == SUBSYS_BEFORE_SHUTDOWN && !notif->crashed &&
 	    test_bit(ICNSS_BLOCK_SHUTDOWN, &priv->state)) {
 		if (!wait_for_completion_timeout(&priv->unblock_shutdown,
@@ -2747,6 +2763,9 @@ static int icnss_service_notifier_notify(struct notifier_block *nb,
 
 	if (notification != SERVREG_NOTIF_SERVICE_STATE_DOWN_V01)
 		goto done;
+
+	if (!priv->is_ssr)
+		set_bit(ICNSS_PDR, &priv->state);
 
 	event_data = kzalloc(sizeof(*event_data), GFP_KERNEL);
 
@@ -3142,6 +3161,8 @@ EXPORT_SYMBOL(icnss_disable_irq);
 
 int icnss_get_soc_info(struct device *dev, struct icnss_soc_info *info)
 {
+	char *fw_build_timestamp = NULL;
+
 	if (!penv || !dev) {
 		icnss_pr_err("Platform driver not initialized\n");
 		return -EINVAL;
@@ -3154,6 +3175,8 @@ int icnss_get_soc_info(struct device *dev, struct icnss_soc_info *info)
 	info->board_id = penv->board_info.board_id;
 	info->soc_id = penv->soc_info.soc_id;
 	info->fw_version = penv->fw_version_info.fw_version;
+	fw_build_timestamp = penv->fw_version_info.fw_build_timestamp;
+	fw_build_timestamp[QMI_WLFW_MAX_TIMESTAMP_LEN_V01] = '\0';
 	strlcpy(info->fw_build_timestamp,
 		penv->fw_version_info.fw_build_timestamp,
 		QMI_WLFW_MAX_TIMESTAMP_LEN_V01 + 1);
@@ -4030,6 +4053,9 @@ static int icnss_stats_show_state(struct seq_file *s, struct icnss_priv *priv)
 			continue;
 		case ICNSS_BLOCK_SHUTDOWN:
 			seq_puts(s, "BLOCK SHUTDOWN");
+			continue;
+		case ICNSS_PDR:
+			seq_puts(s, "PDR TRIGGERED");
 		}
 
 		seq_printf(s, "UNKNOWN-%d", i);
