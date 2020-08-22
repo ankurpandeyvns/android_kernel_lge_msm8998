@@ -409,6 +409,8 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-misleading-indentation \
 		   -Wno-uninitialized \
 		   -Wno-stringop-overflow \
+		   -Wno-psabi \
+		   -Wno-unused-function \
 		   -fno-delete-null-pointer-checks \
 		   -fivopts \
 		   -fvariable-expansion-in-unroller \
