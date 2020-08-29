@@ -580,8 +580,6 @@ static int __read_queue(struct vidc_iface_q_info *qinfo, u8 *packet,
 
 	queue->qhdr_read_idx = new_read_idx;
 
-	queue->qhdr_read_idx = new_read_idx;
-
 	*pb_tx_req_is_set = (1 == queue->qhdr_tx_req) ? 1 : 0;
 
 	if (msm_vidc_debug & VIDC_PKT) {
@@ -2383,33 +2381,6 @@ static int venus_hfi_core_release(void *dev)
 	return rc;
 }
 
-static int __get_q_size(struct venus_hfi_device *dev, unsigned int q_index)
-{
-	struct hfi_queue_header *queue;
-	struct vidc_iface_q_info *q_info;
-	u32 write_ptr, read_ptr;
-
-	if (q_index >= VIDC_IFACEQ_NUMQ) {
-		dprintk(VIDC_ERR, "Invalid q index: %d\n", q_index);
-		return -ENOENT;
-	}
-
-	q_info = &dev->iface_queues[q_index];
-	if (!q_info) {
-		dprintk(VIDC_ERR, "cannot read shared Q's\n");
-		return -ENOENT;
-	}
-
-	queue = (struct hfi_queue_header *)q_info->q_hdr;
-	if (!queue) {
-		dprintk(VIDC_ERR, "queue not present\n");
-		return -ENOENT;
-	}
-
-	write_ptr = (u32)queue->qhdr_write_idx;
-	read_ptr = (u32)queue->qhdr_read_idx;
-	return read_ptr - write_ptr;
-}
 
 static void __core_clear_interrupt(struct venus_hfi_device *device)
 {
@@ -3410,8 +3381,9 @@ exit:
 static void print_sfr_message(struct venus_hfi_device *device)
 {
 	struct hfi_sfr_struct *vsfr = NULL;
+	
 	u32 vsfr_size = 0;
-	void *p = NULL;
+	void *p = NULL;	
 
 	/* Once SYS_ERROR received from HW, it is safe to halt the AXI.
 	 * With SYS_ERROR, Venus FW may have crashed and HW might be
@@ -3472,7 +3444,7 @@ static void __flush_debug_queue(struct venus_hfi_device *device, u8 *packet)
 			continue; \
 		} \
 	})
-
+	
 	while (!__iface_dbgq_read(device, packet)) {
 		struct hfi_packet_header *pkt =
 			(struct hfi_packet_header *) packet;
@@ -3485,9 +3457,10 @@ static void __flush_debug_queue(struct venus_hfi_device *device, u8 *packet)
 
 		if (pkt->packet_type == HFI_MSG_SYS_COV) {
 			struct hfi_msg_sys_coverage_packet *pkt =
-				(struct hfi_msg_sys_coverage_packet *) packet;
+				(struct hfi_msg_sys_coverage_packet *) packet;		
 			int stm_size = 0;
-
+			
+			
 			SKIP_INVALID_PKT(pkt->size,
 				pkt->msg_size, sizeof(*pkt));
 
@@ -3501,7 +3474,7 @@ static void __flush_debug_queue(struct venus_hfi_device *device, u8 *packet)
 		} else if (pkt->packet_type == HFI_MSG_SYS_DEBUG) {
 			struct hfi_msg_sys_debug_packet *pkt =
 				(struct hfi_msg_sys_debug_packet *) packet;
-
+				
 			SKIP_INVALID_PKT(pkt->size,
 				pkt->msg_size, sizeof(*pkt));
 
@@ -3550,8 +3523,6 @@ static int __response_handler(struct venus_hfi_device *device)
 	}
 
 	if (device->intr_status & VIDC_WRAPPER_INTR_CLEAR_A2HWD_BMSK) {
-		struct hfi_sfr_struct *vsfr = (struct hfi_sfr_struct *)
-			device->sfr.align_virtual_addr;
 		struct msm_vidc_cb_info info = {
 			.response_type = HAL_SYS_WATCHDOG_TIMEOUT,
 			.response.cmd = {
@@ -3559,7 +3530,7 @@ static int __response_handler(struct venus_hfi_device *device)
 			}
 		};
 
-		print_sfr_message(device);
+			print_sfr_message(device);
 
 		dprintk(VIDC_ERR, "Received watchdog timeout\n");
 		packets[packet_count++] = info;
@@ -4860,4 +4831,3 @@ int venus_hfi_initialize(struct hfi_device *hdev, u32 device_id,
 err_venus_hfi_init:
 	return rc;
 }
-
