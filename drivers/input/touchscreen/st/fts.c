@@ -1055,6 +1055,13 @@ static unsigned char *fts_gesture_event_handler(struct fts_ts_info *info, unsign
 			logError(0, "%s %s: double tap !\n", tag, __func__);
 		break;
 
+		switch (event[2]) {
+		case GES_ID_DBLTAP:
+			value = KEY_DOUBLE_TAP;
+			logError(0, "%s %s: double tap !\n", tag, __func__);
+		break;
+
+
 		case GES_ID_AT:
 			value = KEY_WWW;
 			logError(0, "%s %s: @ !\n", tag, __func__);
@@ -2116,7 +2123,7 @@ static int fts_probe(struct i2c_client *client,
 
 #ifdef PHONE_GESTURE
 	input_set_capability(info->input_dev, EV_KEY, KEY_WAKEUP);
-
+	input_set_capability(info->input_dev, EV_KEY, KEY_DOUBLE_TAP);
 	input_set_capability(info->input_dev, EV_KEY, KEY_M);
 	input_set_capability(info->input_dev, EV_KEY, KEY_O);
 	input_set_capability(info->input_dev, EV_KEY, KEY_E);

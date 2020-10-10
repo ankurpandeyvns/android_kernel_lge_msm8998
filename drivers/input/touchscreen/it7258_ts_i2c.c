@@ -1245,8 +1245,10 @@ static irqreturn_t it7260_ts_threaded_handler(int irq, void *devid)
 				pt_data.gesture_id == 0) {
 			pm_stay_awake(&ts_data->client->dev);
 			input_report_key(input_dev, KEY_WAKEUP, 1);
+			input_report_key(input_dev, KEY_DOUBLE_TAP, 1);
 			input_sync(input_dev);
 			input_report_key(input_dev, KEY_WAKEUP, 0);
+			input_report_key(input_dev, KEY_DOUBLE_TAP, 0);
 			input_sync(input_dev);
 			schedule_work(&ts_data->work_pm_relax);
 		} else {
@@ -1918,6 +1920,7 @@ static int it7260_ts_probe(struct i2c_client *client,
 
 	if (pdata->wakeup) {
 		set_bit(KEY_WAKEUP, ts_data->input_dev->keybit);
+		set_bit(KEY_DOUBLE_TAP, ts_data->input_dev->keybit);
 		INIT_WORK(&ts_data->work_pm_relax, it7260_ts_work_func);
 		device_init_wakeup(&client->dev, pdata->wakeup);
 	}

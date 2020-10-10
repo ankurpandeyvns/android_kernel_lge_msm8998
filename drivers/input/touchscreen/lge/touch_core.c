@@ -389,6 +389,7 @@ static int touch_init_input(struct touch_core_data *ts)
 	set_bit(BTN_TOUCH, input->keybit);
 	set_bit(BTN_TOOL_FINGER, input->keybit);
 	set_bit(KEY_WAKEUP, input->keybit);
+	set_bit(KEY_DOUBLE_TAP, input->keybit);
 	set_bit(KEY_GESTURE_SLIDE_UP, input->keybit);
 	set_bit(KEY_GESTURE_SLIDE_DOWN, input->keybit);
 	set_bit(KEY_GESTURE_SLIDE_LEFT, input->keybit);
@@ -581,9 +582,11 @@ static void touch_send_uevent(struct touch_core_data *ts, int type)
 	switch (type) {
 		case TOUCH_UEVENT_KNOCK:
 			input_report_key(ts->input, KEY_WAKEUP, 1);
+			input_report_key(ts->input, KEY_DOUBLE_TAP, 1);
 			TOUCH_I("Simulate power button depress\n");
 			input_sync(ts->input);
 			input_report_key(ts->input, KEY_WAKEUP, 0);
+			input_report_keu(ts->input, KEY_DOUBLE_TAP, 1);
 			TOUCH_I("Simulate power button release\n");
 			input_sync(ts->input);
 			break;
